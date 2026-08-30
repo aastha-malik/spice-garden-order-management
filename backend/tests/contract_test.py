@@ -251,6 +251,7 @@ st, js, _ = call("POST", "/customers", {"name": "With Email", "email": f"c{rando
                                         "phone": f"+9198{random.randint(10000000, 99999999)}"})
 check("email accepts a string", st == 201 and isinstance(js["data"]["email"], str), f"got {js}")
 CUST_ID_2 = js["data"]["id"]
+PHONE_2 = js["data"]["phone"]
 
 section("POST /customers  →  VALIDATION_FAILED / RESOURCE_ALREADY_EXISTS")
 expect_error("required field missing (no name)", "POST", "/customers", 400, "VALIDATION_FAILED",
@@ -278,8 +279,13 @@ check("Customer matches the contract exactly", not probs, "; ".join(probs))
 st, js, _ = call("PATCH", f"/customers/{CUST_ID_2}", {"email": None})
 check("email can be cleared to null", st == 200 and js["data"]["email"] is None, f"got {js}")
 
-st, js, _ = call("PATCH", f"/customers/{CUST_ID}", {"phone": f"+9197{random.randint(10000000,99999999)}"})
+new_phone_for_cust = f"+9197{random.randint(10000000,99999999)}"
+st, js, _ = call("PATCH", f"/customers/{CUST_ID}", {"phone": new_phone_for_cust})
 check("phone alone is accepted", st == 200, f"got {st}: {js}")
+
+st, js, _ = call("PATCH", f"/customers/{CUST_ID}", {"phone": new_phone_for_cust})
+check("setting a customer's phone to its own current value is a no-op, not a conflict",
+      st == 200, f"got {st}: {js}")
 
 section("PATCH /customers/{id}  →  errors")
 expect_error("customer does not exist", "PATCH",
@@ -288,7 +294,7 @@ expect_error("customer does not exist", "PATCH",
 expect_error("wrong type (name is a number)", "PATCH", f"/customers/{CUST_ID}",
              400, "VALIDATION_FAILED", {"name": 999})
 expect_error("phone already taken by another customer", "PATCH", f"/customers/{CUST_ID}",
-             409, "RESOURCE_ALREADY_EXISTS", {"phone": phone})
+             409, "RESOURCE_ALREADY_EXISTS", {"phone": PHONE_2})
 
 # ------------------------------------------------------- GET /orders
 section("GET /orders  →  200 ApiResponse<OrderDetail[]>")
